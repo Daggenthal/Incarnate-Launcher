@@ -20,7 +20,7 @@ Grab the newest version from [Releases](https://github.com/Daggenthal/Incarnate-
 
 | System | File |
 |---|---|
-| Windows | `Incarnate-Launcher-Setup-x.y.z.exe` (installer) or `Incarnate-Launcher-x.y.z-Portable.exe` (no install) |
+| Windows | `Incarnate-Launcher-Setup-x.y.z.exe` |
 | macOS (Apple Silicon and Intel) | `Incarnate-Launcher-x.y.z-mac-universal.dmg` |
 | Linux (x64) | `Incarnate-Launcher-x.y.z-linux-x86_64.AppImage` |
 | Linux (ARM) | `Incarnate-Launcher-x.y.z-linux-arm64.AppImage` |
@@ -29,7 +29,7 @@ The launcher isn't signed with a paid Apple or Microsoft certificate, so the fir
 
 ## Windows
 
-1. Run the installer or the portable `.exe`.
+1. Run `Incarnate-Launcher-Setup-x.y.z.exe`.
 2. If Windows says **"Windows protected your PC"**: Click **More info**, then **Run anyway**. You only have to do this once.
 3. That's it. City of Heroes is a Windows game, so nothing else is needed.
 

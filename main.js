@@ -613,7 +613,20 @@ const calls = {
   appVersion() { return { version: app.getVersion(), auto: store.settings.appUpdateAuto !== false, last: lastUpdateCheck }; },
   appCheckUpdate() { return checkAppUpdate(); },
   appSetAutoUpdate(on) { store.settings.appUpdateAuto = !!on; saveStore(); return true; },
-  appUpdate() { if (lastUpdateCheck && lastUpdateCheck.url) shell.openExternal(lastUpdateCheck.url); return { opened: true }; },
+  // Restart to Update. If a game download is running it asks first ({ busy }); the download is
+  // remembered, so it picks back up after the restart
+  appUpdate({ force } = {}) {
+    const r = lastUpdateCheck || {};
+    if (r.ready && updater) {
+      if (Object.keys(patchers).length && !force) return { busy: true };
+      saveStore();
+      setImmediate(() => updater.quitAndInstall(true, true));
+      return { restarting: true };
+    }
+    if (r.self && getUpdater() && r.available) { getUpdater().checkForUpdates().catch((e) => updateState({ updaterError: e.message })); return { downloading: true }; }
+    if (r.url) shell.openExternal(r.url);
+    return { opened: true };
+  },
 
   // ---- Logs card ----
   serverLog(id) {
@@ -659,19 +672,45 @@ for (const [name, fn] of Object.entries(calls)) {
   });
 }
 
+// Updates install themselves where that works without a paid code certificate: the Windows installer
+// and the Linux AppImage, through electron-updater (it reads the latest*.yml files each release
+// carries, and only gets the changed parts on Windows). It downloads in the background, then
+// Restart to Update installs it; Later installs it when the launcher quits. macOS keeps Update
+// Available, which opens the release page
+const selfUpdates = app.isPackaged && (process.platform === 'win32' || (process.platform === 'linux' && !!process.env.APPIMAGE));
+let updater = null;
 let lastUpdateCheck = null;
+const updateState = (patch) => { lastUpdateCheck = { ...(lastUpdateCheck || {}), ...patch }; send('update', lastUpdateCheck); };
+function getUpdater() {
+  if (!selfUpdates) return null;
+  if (updater) return updater;
+  try { updater = require('electron-updater').autoUpdater; } catch (e) { log('updater:', e.message); return null; }
+  updater.autoDownload = true;
+  updater.autoInstallOnAppQuit = true;
+  updater.logger = null;
+  updater.on('download-progress', (p) => updateState({ downloading: Math.floor(p.percent || 0) }));
+  updater.on('update-downloaded', (i) => {
+    updateState({ downloading: null, ready: true, latest: i.version, updaterError: null });
+    notify('Incarnate Launcher update', `Version ${i.version} is ready. Restart to Update (or it installs when you close the launcher).`);
+  });
+  updater.on('error', (e) => { log('updater:', e.message); updateState({ downloading: null, updaterError: e.message }); });
+  return updater;
+}
 async function checkAppUpdate() {
   const r = await releaseUpdate.check(app.getVersion());
-  lastUpdateCheck = r;
-  send('update', r);
-  if (r.available) notify('Incarnate Launcher update', `Version ${r.latest} is out. Settings has the download.`);
-  return r;
+  const was = lastUpdateCheck || {};
+  updateState({ ...r, self: selfUpdates, ready: !!(was.ready && was.latest === r.latest) });
+  if (!r.available || lastUpdateCheck.ready) return lastUpdateCheck;
+  const u = getUpdater();
+  if (u) { if (was.downloading == null) u.checkForUpdates().catch((e) => updateState({ updaterError: e.message })); }
+  else notify('Incarnate Launcher update', `Version ${r.latest} is out. Settings has the download.`);
+  return lastUpdateCheck;
 }
 
 // ---- Start ----
 
 // Windows won't show notifications without an app id
-if (process.platform === 'win32') app.setAppUserModelId('com.incarnate.launcher');
+if (process.platform === 'win32') app.setAppUserModelId('com.daggenthal.incarnate-launcher'); // the installer's appId
 
 app.whenReady().then(async () => {
   store = loadStore();
@@ -689,8 +728,10 @@ app.whenReady().then(async () => {
     calls.patch({ id, verify: false }).catch((e) => log('resume:', e.message));
   }
   setInterval(refreshAllHealth, 30 * 1000);
-  // Check for launcher updates once at launch, unless it's turned off in Settings
+  // Check for launcher updates at launch, unless it's turned off in Settings
   if (store.settings.appUpdateAuto !== false) setTimeout(() => checkAppUpdate().catch(() => {}), 6000);
+  // ...and every 4 hours, for launchers that stay open
+  setInterval(() => { if (store.settings.appUpdateAuto !== false) checkAppUpdate().catch(() => {}); }, 4 * 3600 * 1000);
 });
 
 app.on('window-all-closed', () => app.quit());

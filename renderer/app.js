@@ -556,16 +556,23 @@ let swInfo = null;
 let swLast = null;
 
 function renderSoftware() {
-  const avail = !!(swLast && swLast.ok && swLast.available);
-  $('#appUpdateBtn').hidden = !avail;
-  $('#swUpdate').hidden = !avail;
+  const r = swLast;
+  const avail = !!(r && r.ok && r.available);
+  const ready = !!(r && r.ready);
+  const getting = !!(r && r.self && r.downloading != null && !ready);
+  // Windows installer and Linux AppImage update themselves (download, then Restart to Update);
+  // macOS gets the release page
+  const label = ready ? 'Restart to Update' : getting ? `Updating ${r.downloading}%` : 'Update Available';
+  for (const b of [$('#appUpdateBtn'), $('#swUpdate')]) { b.hidden = !(avail || ready); b.textContent = label; b.disabled = getting; }
   if (!swInfo) return;
   $('#swVersion').textContent = swInfo.version;
   $('#swAuto').checked = swInfo.auto;
-  const r = swLast;
   $('#swStatus').textContent = !r ? 'Not checked yet'
-    : !r.ok ? `Couldn't check: ${r.error}`
-    : avail ? `Version ${r.latest} is out. Download Update opens its page: grab the one for your system.`
+    : !r.ok && !ready ? `Couldn't check: ${r.error}`
+    : ready ? `Version ${r.latest} is downloaded. Restart to Update installs it now; otherwise it installs when you close the launcher.`
+    : getting ? `Downloading version ${r.latest}... ${r.downloading}%`
+    : avail && r.self ? (r.updaterError ? `Version ${r.latest} is out, but the download failed (${r.updaterError}). Update Available tries again.` : `Version ${r.latest} is out. Downloading it...`)
+    : avail ? `Version ${r.latest} is out. Update Available opens its page: grab the one for your system.`
     : `Up to date (checked ${new Date(r.checkedAt).toLocaleTimeString()})`;
   $('#swNew').innerHTML = avail && r.notes ? r.notes.split('\n').map((l) => l.replace(/^[-*] ?/, '').trim()).filter(Boolean).slice(0, 10)
     .map((l) => `<li>${esc(l)}</li>`).join('') : '';
@@ -577,8 +584,12 @@ async function loadSoftware() {
 }
 
 async function swUpdate() {
-  if (!swLast || !swLast.available) return;
-  await launcher.appUpdate();
+  if (!swLast || !(swLast.available || swLast.ready)) return;
+  let r = await launcher.appUpdate({});
+  // A game download is running: it's remembered and picks back up after the restart, but ask
+  if (r && r.busy && confirm('A game download is running. Restart to update the launcher now? The download picks back up where it left off after the restart.')) {
+    r = await launcher.appUpdate({ force: true });
+  }
 }
 
 $('#swCheck').onclick = async () => {

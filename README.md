@@ -54,12 +54,23 @@ xattr -dr com.apple.quarantine "/Applications/Incarnate Launcher.app"
 
 ## Linux
 
-1. Download the AppImage and make it executable: right-click it, then Properties → Permissions → **Allow executing file as program**. Or in a terminal:
+Paste this in a terminal:
+
+```
+curl -fsSL https://raw.githubusercontent.com/Daggenthal/Incarnate-Launcher/main/install.sh | bash
+```
+
+It grabs the right download for your computer (x64 or ARM), checks it, installs FUSE if your system needs it (it only asks for your password then), puts the launcher in `~/Applications` and adds it to your app menu. Run it again any time to reinstall. To remove it, add `-s -- --uninstall` after `bash`.
+
+**Or by hand:**
+
+1. Download the AppImage for your computer (`x86_64` for most PCs, `arm64` for ARM) and make it executable: right-click it, then Properties → Permissions → **Allow executing file as program**. Or in a terminal:
    ```
    chmod +x Incarnate-Launcher-*.AppImage
    ```
 2. Run it.
-3. If it doesn't start and says something about FUSE: Install `libfuse2` (Ubuntu/Debian: `sudo apt install libfuse2`, Fedora: `sudo dnf install fuse-libs`).
+3. If it doesn't start and says something about FUSE: Install it (Ubuntu 24.04 and newer: `sudo apt install libfuse2t64`, older Ubuntu and Debian: `sudo apt install libfuse2`, Fedora: `sudo dnf install fuse-libs`, Arch: `sudo pacman -S fuse2`).
+4. Keep the AppImage somewhere you can write to (like your home folder): updates replace that file.
 
 You also need Wine or Proton. The launcher finds them by itself and tells you if there's none:
 

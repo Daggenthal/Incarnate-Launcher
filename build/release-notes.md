@@ -1,6 +1,4 @@
-Attempt to fix the Auto-Updater for Windows and Linux. macOS behaves a bit differently for now, until I grab a paid Developer license later on
-## What's new in 0.1.2
+Added a one-liner installer for Linux. The only thing needed to be installed, is git, but other than that it'll pick what you need, see what Architecture you are on, and setup everything for you into an AppImage
+## What's new in 0.2.0
 
-- Updates itself on Windows and Linux
-- No Windows portable build
-- Drafts, and the release notes on the release page
+- A one-line Linux installer

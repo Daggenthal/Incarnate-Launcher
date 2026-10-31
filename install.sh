@@ -79,10 +79,17 @@ say "Newest version: $ver ($arch)"
 # ---- What AppImages need to start ----
 # FUSE 2 on every system; on ARM also libz.so (the ARM AppImage's start-up code loads it by that
 # exact name, which Debian/Ubuntu/Fedora/openSUSE only have with zlib's development package)
+# Not grep -q: it stops reading at the first match, ldconfig then dies writing the rest, and with
+# pipefail a found library counts as missing. And each path on its own: ls fails if any is missing
 has_lib() {
-    { command -v ldconfig > /dev/null && ldconfig -p 2> /dev/null | grep -q "$1"; } ||
-    { [ -x /sbin/ldconfig ] && /sbin/ldconfig -p 2> /dev/null | grep -q "$1"; } ||
-    ls /usr/lib*/$2 /usr/lib*/*/$2 /lib*/$2 /lib*/*/$2 > /dev/null 2>&1
+    local ldc p
+    for ldc in ldconfig /sbin/ldconfig /usr/sbin/ldconfig; do
+        command -v "$ldc" > /dev/null || continue
+        if "$ldc" -p 2> /dev/null | grep "$1" > /dev/null; then return 0; fi
+        break
+    done
+    for p in /usr/lib*/$2 /usr/lib*/*/$2 /lib*/$2 /lib*/*/$2; do [ -e "$p" ] && return 0; done
+    return 1
 }
 has_fuse() { has_lib 'libfuse\.so\.2' 'libfuse.so.2*'; }
 has_libz() { has_lib 'libz\.so ' 'libz.so'; }

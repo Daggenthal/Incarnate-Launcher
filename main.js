@@ -271,6 +271,10 @@ function createWindow() {
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#101218' : '#f4f5f8',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
+  // Windows and Linux get Electron's default File/Edit/View/Window bar, which does nothing useful
+  // here, so it goes. macOS keeps its menu (that's where Cmd+Q and copy/paste live). Debug mode
+  // keeps it everywhere for View, Toggle Developer Tools
+  if (process.platform !== 'darwin' && !DEBUG) win.removeMenu();
   if (store.window && store.window.maximized) win.maximize();
   let t = null;
   const later = () => { clearTimeout(t); t = setTimeout(() => { rememberBounds(); saveStore(); }, 600); };
@@ -569,14 +573,32 @@ const calls = {
     // If Wine/Proton/the game dies within a few seconds, that runner probably doesn't work here.
     // Tell them, and point at Settings to try a different one
     const started = Date.now();
+    let early = false;
     const failed = (why) => {
-      if (Date.now() - started > 20000) return;
+      if (Date.now() - started > 20000) return false;
+      early = true;
       const msg = `The game stopped right after starting ${how} (${why}). Try another way to run it in Settings, under "Run the Game With". The game log has the details.`;
       slog(id, `FAILED: ${msg}`);
       send('playfail', { id, message: msg });
+      return true;
     };
-    child.on('error', (e) => failed(e.message));
-    child.on('exit', (code, sig) => { if (code || sig) failed(sig ? `signal ${sig}` : `exit code ${code}`); });
+    // After that, keep the line under Play honest: running, closed, or closed on a crash. A crash
+    // later on (or an error box the game sits on) used to leave "Starting the game." up forever
+    const alive = setTimeout(() => send('game', { id, state: 'running' }), 8000);
+    child.on('error', (e) => { clearTimeout(alive); failed(e.message); });
+    child.on('exit', (code, sig) => {
+      clearTimeout(alive);
+      const why = sig ? `signal ${sig}` : `exit code ${code}`;
+      if ((code || sig) && failed(why)) return;
+      if (early) return;
+      if (code || sig) {
+        slog(id, `The game closed unexpectedly (${why})`);
+        send('game', { id, state: 'crashed', why });
+      } else {
+        slog(id, 'The game closed');
+        send('game', { id, state: 'closed' });
+      }
+    });
     return {};
   },
 

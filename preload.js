@@ -20,6 +20,7 @@ api.onInfo = (fn) => ipcRenderer.on('info', (_e, d) => fn(d));
 api.onAppUpdate = (fn) => ipcRenderer.on('update', (_e, d) => fn(d));
 api.onServerLog = (fn) => ipcRenderer.on('slog', (_e, d) => fn(d));
 api.onPlayFail = (fn) => ipcRenderer.on('playfail', (_e, d) => fn(d));
+api.onGame = (fn) => ipcRenderer.on('game', (_e, d) => fn(d));
 api.onResumed = (fn) => ipcRenderer.on('resumed', (_e, d) => fn(d));
 
 contextBridge.exposeInMainWorld('launcher', api);

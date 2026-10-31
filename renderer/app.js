@@ -636,6 +636,14 @@ $('#sLogsFolder').onclick = () => launcher.revealLogs();
 
 // The game died right after starting (Wine/Proton couldn't run it): Say so next to Play
 launcher.onPlayFail(({ id, message }) => { if (current() && current().id === id) setMsg(message, 'bad'); });
+// The game after it got going: running, closed (the line clears), or closed on a crash
+launcher.onGame(({ id, state, why }) => {
+  if (state === 'crashed') loadServerLog(id);
+  if (!current() || current().id !== id) return;
+  if (state === 'running') setMsg('The game is running.', 'ok');
+  else if (state === 'closed') setMsg('');
+  else if (state === 'crashed') setMsg(`The game closed unexpectedly (${why}). Copy Logs (Settings, This Server) has the details for your server's staff.`, 'bad');
+});
 // A download that got cut off last time, picked back up at start
 launcher.onResumed(({ id }) => { if (current() && current().id === id) setMsg('Picking the download up where it left off...', 'ok'); });
 

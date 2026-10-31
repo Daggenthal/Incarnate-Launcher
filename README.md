@@ -57,6 +57,12 @@ xattr -dr com.apple.quarantine "/Applications/Incarnate Launcher.app"
 Paste this in a terminal:
 
 ```
+wget -qO- https://raw.githubusercontent.com/Daggenthal/Incarnate-Launcher/main/install.sh | bash
+```
+
+Ubuntu, Debian and most desktops come with `wget`. If yours says it isn't installed, use `curl` instead:
+
+```
 curl -fsSL https://raw.githubusercontent.com/Daggenthal/Incarnate-Launcher/main/install.sh | bash
 ```
 

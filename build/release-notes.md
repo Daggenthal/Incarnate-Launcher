@@ -1,4 +1,4 @@
-Added a one-liner installer for Linux. The only thing needed to be installed, is git, but other than that it'll pick what you need, see what Architecture you are on, and setup everything for you into an AppImage
-## What's new in 0.2.0
+Changed the Linux one-liner to wget, as some Distro's don't come bundled with CURL or whatever else we need. This will grab them all for us
+## What's new in 0.2.1
 
-- A one-line Linux installer
+- Linux installer: wget works too, the password prompt shows, libz on ARM

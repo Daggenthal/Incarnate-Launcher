@@ -1,7 +1,7 @@
 {
   "name": "incarnate-launcher",
   "productName": "Incarnate Launcher",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "A launcher for City of Heroes servers: add a server, download the game, see if it's up, and play. Windows, macOS and Linux.",
   "main": "main.js",
   "author": "Daggenthal",

@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, safeStorage, Notification, clipboard, screen } = require('electron');
 const { detectRunners, pickRunner } = require('./lib/runners');
+const wineInstall = require('./lib/wine-install'); // Wine for Linux players who have none
 const { parseManifest, splitParams } = require('./lib/manifest');
 const { isPkgManifest, parsePkgManifest } = require('./lib/pkgmanifest');
 const { checkHealth } = require('./lib/health');
@@ -22,6 +23,7 @@ let win = null;
 let store, accounts;
 const manifests = {};   // server id -> parsed manifest, or { error }
 const health = {};      // server id -> last health result
+let wineJob = null; // the Wine install that's running (Linux)
 const patchers = {};    // server id -> the Patcher that's running
 const send = (ch, d) => { if (win && !win.isDestroyed()) win.webContents.send(ch, d); };
 const log = (...a) => { if (DEBUG) console.log('[launcher]', ...a); };
@@ -53,7 +55,11 @@ function loadStore() {
 }
 
 // What can run the game on this computer, looked up once at start
-const runners = detectRunners();
+// The Wine the launcher installed (Linux) lives in its own folder, with its own prefix
+const WINE_DIR = path.join(app.getPath('userData'), 'wine');
+const WINE_PREFIX = path.join(app.getPath('userData'), 'wine-prefix');
+const managedWine = () => wineInstall.installed(WINE_DIR).slice(0, 1).map((w) => wineInstall.runnerFor(w, WINE_PREFIX));
+let runners = detectRunners({ extra: managedWine() });
 function runnerUsable(r) {
   if (!r) return false;
   if (r.kind === 'native') return process.platform === 'win32';
@@ -600,6 +606,53 @@ const calls = {
       }
     });
     return {};
+  },
+
+  // ---- Wine the launcher installs (Linux x64): offer, install with progress, update, remove ----
+  async wineInfo({ check } = {}) {
+    const have = wineInstall.installed(WINE_DIR)[0] || null;
+    const out = { supported: wineInstall.supported(), installed: have && { version: have.version }, installing: !!wineJob };
+    if (check && out.supported) {
+      try { out.latest = await wineInstall.findStable(); } catch (e) { out.error = e.message; }
+    }
+    return out;
+  },
+  async wineInstall() {
+    if (!wineInstall.supported()) throw new Error('The launcher can only install Wine on Linux x64.');
+    if (wineJob) return { busy: true };
+    const job = wineJob = new wineInstall.WineInstall(WINE_DIR);
+    (async () => {
+      try {
+        send('wine', { phase: 'finding' });
+        const build = await wineInstall.findStable();
+        log('wine: installing', build.name, build.size, 'bytes');
+        send('wine', { phase: 'download', bytes: 0, totalBytes: build.size, version: build.version });
+        job.on('progress', (d) => send('wine', { ...d, version: build.version }));
+        const w = await job.run(build);
+        if (!w) { send('wine', { phase: 'cancelled' }); return; }
+        runners = detectRunners({ extra: managedWine() });
+        store.settings.runner = wineInstall.runnerFor(w, WINE_PREFIX);
+        saveStore();
+        send('info', view());
+        send('wine', { phase: 'done', version: w.version });
+        notify('Wine is installed', `Wine ${w.version} is ready, and the launcher will use it to run the game.`);
+      } catch (e) {
+        log('wine:', e.message);
+        send('wine', { phase: 'error', error: e.message });
+      } finally {
+        wineJob = null;
+      }
+    })();
+    return { started: true };
+  },
+  wineCancel() { if (wineJob) wineJob.cancel(); return true; },
+  async wineRemove() {
+    if (wineJob) throw new Error('Wait for the Wine download to finish first.');
+    await wineInstall.removeAll(WINE_DIR);
+    runners = detectRunners({ extra: managedWine() });
+    if (store.settings.runner && store.settings.runner.managed) store.settings.runner = pickRunner(runners) || defaultRunner();
+    saveStore();
+    return view();
   },
 
   setSettings(patch) {

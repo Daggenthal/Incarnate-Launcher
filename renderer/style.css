@@ -163,6 +163,14 @@ table.shards .dot { display: inline-block; width: 8px; height: 8px; margin-right
 .cdList { margin: 8px 0 12px; padding-left: 18px; max-height: 300px; overflow: auto; font-size: 13px; }
 .cdList li { padding: 2px 0; }
 
+/* The launcher's own Wine: the offer, and its download like a game's */
+.wineBox { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin: 12px 0 10px; }
+.wineHead { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; line-height: 1.45; }
+#rdWineProg { margin: 8px 0 4px; }
+#rdWineProg .dlText { font-size: 13px; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+#rdWineMsg { margin: 6px 0; }
+#wineRow .row { align-items: center; gap: 10px; flex-wrap: wrap; }
+
 /* Nothing to run the game with: What to install */
 .rdList { margin: 10px 0 14px; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
 

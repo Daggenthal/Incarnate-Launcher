@@ -470,6 +470,7 @@ $('#settingsBtn').onclick = () => {
       <div class="field" id="rBottleRow"><label>CrossOver bottle</label><input id="rBottle" value="${esc(r.bottle || '')}" spellcheck="false"></div>
       <div class="field" id="rPrefixRow"><label>Prefix</label><input id="rPrefix" value="${esc(r.prefix || '')}" placeholder="Default" spellcheck="false"></div>
       <p class="dim">If the game doesn't start, or stops right away, try another one here: Proton often runs it when Wine doesn't.</p>`;
+    loadWineRow();
     const kindOf = () => { const v = $('#rKind').value; return v[0] === 'f' ? found[+v.slice(1)].kind : v; };
     const sync = () => {
       const k = kindOf();
@@ -480,7 +481,7 @@ $('#settingsBtn').onclick = () => {
     };
     $('#rKind').onchange = () => {
       const v = $('#rKind').value;
-      if (v[0] === 'f') { const x = found[+v.slice(1)]; $('#rWine').value = x.wine || x.proton || x.umu || ''; if (x.bottle) $('#rBottle').value = x.bottle; }
+      if (v[0] === 'f') { const x = found[+v.slice(1)]; $('#rWine').value = x.wine || x.proton || x.umu || ''; if (x.bottle) $('#rBottle').value = x.bottle; $('#rPrefix').value = x.prefix || ''; }
       else $('#rWine').value = v === 'crossover' ? '/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine' : v === 'wine' ? 'wine' : '';
       sync();
     };
@@ -512,7 +513,7 @@ $('#settingsSave').onclick = async () => {
     const v = $('#rKind').value;
     const base = v[0] === 'f' ? found[+v.slice(1)] : { kind: v, name: '' };
     const prog = $('#rWine').value.trim();
-    const runner = { ...base, wine: '', proton: '', umu: '', bottle: $('#rBottle').value.trim(), prefix: $('#rPrefix').value.trim() };
+    const runner = { ...base, wine: '', proton: '', umu: '', bottle: $('#rBottle').value.trim(), prefix: $('#rPrefix').value.trim(), managed: !!base.managed };
     runner[base.kind === 'proton' ? 'proton' : base.kind === 'umu' ? 'umu' : 'wine'] = prog;
     info = await launcher.setSettings({ runner });
   }
@@ -700,8 +701,8 @@ function needRunner() {
   if (!info || info.platform === 'win32' || (info.runners && info.runners.length)) return;
   const mac = info.platform === 'darwin';
   $('#rdText').textContent = mac
-    ? "City of Heroes is a Windows game, so on a Mac it runs through a compatibility layer. The launcher didn't find one. Install one of these:"
-    : "City of Heroes is a Windows game, so on Linux it runs through Wine or Proton. The launcher didn't find either. Install one of these:";
+    ? "City of Heroes is a Windows game, so on a Mac it runs through a compatibility layer. The launcher didn't find one."
+    : "City of Heroes is a Windows game, so on Linux it runs through Wine or Proton. The launcher didn't find either.";
   const items = mac ? [
     ['CrossOver', 'Paid, with a free trial. The easiest and most reliable.', 'https://www.codeweavers.com/crossover'],
     ['Whisky', 'Free. Uses Apple\'s Game Porting Toolkit.', 'https://getwhisky.app/'],
@@ -714,8 +715,100 @@ function needRunner() {
   $('#rdList').innerHTML = items.map(([n, d, u]) => `<li><button class="link" data-url="${esc(u)}">${esc(n)}</button><span class="dim"> ${esc(d)}</span></li>`).join('');
   $('#rdList').onclick = (e) => { const u = e.target.dataset.url; if (u) launcher.open(u); };
   $('#rdOk').onclick = () => $('#runnerDlg').close();
+  $('#rdOrText').textContent = 'Install one of these:';
+  $('#rdWine').hidden = true;
+  for (const el of [$('#rdOrText'), $('#rdList')]) el.hidden = false;
+  $('#rdOk').textContent = 'Close'; $('#rdOk').classList.remove('primary');
+  $('#rdWineMsg').textContent = ''; $('#rdWineGo').textContent = 'Install Wine for Me';
+  showWineOffer();
   $('#runnerDlg').showModal();
 }
+
+// ---- Wine the launcher installs itself (Linux x64): the offer, then the download like a game's ----
+
+let wineLast = null;
+async function showWineOffer() {
+  let w = null;
+  try { w = await launcher.wineInfo({ check: true }); } catch { /* not offered */ }
+  $('#rdWine').hidden = !(w && w.supported);
+  $('#rdOrText').textContent = $('#rdWine').hidden ? 'Install one of these:' : 'Or install one of these yourself:';
+  if (!w || !w.supported) return;
+  $('#rdWineWhat').textContent = w.latest
+    ? ` Wine ${w.latest.version} (the newest stable one, about ${Math.round(w.latest.size / 1048576)} MB) from Kron4ek's Wine builds on GitHub.`
+    : ` Wine from Kron4ek's Wine builds on GitHub.${w.error ? ` (Couldn't check the version: ${w.error})` : ''}`;
+  setWineBusy(w.installing);
+}
+function setWineBusy(on) {
+  $('#rdWineGo').hidden = on;
+  $('#rdWineCancel').hidden = !on;
+  $('#rdWineProg').hidden = !on;
+  $('#rdOk').disabled = false;
+}
+$('#rdWineGo').onclick = async () => {
+  $('#rdWineMsg').textContent = ''; $('#rdWineMsg').className = 'msg';
+  rates.wine = null;
+  setWineBusy(true);
+  $('#rdWineText').textContent = 'Finding the newest stable Wine...';
+  $('#rdWineFill').style.width = '0%';
+  try { await launcher.wineInstall(); } catch (e) { setWineBusy(false); $('#rdWineMsg').textContent = errText(e); $('#rdWineMsg').className = 'msg bad'; }
+};
+$('#rdWineCancel').onclick = () => launcher.wineCancel();
+launcher.onWine((d) => {
+  wineLast = d;
+  const mb = (n) => (n / 1048576).toFixed(n > 1048576 * 100 ? 0 : 1);
+  if (d.phase === 'download') {
+    // The same speed and time left as a game download (Settings picks MB/s or Mbps)
+    const r = rateOf('wine', d.bytes || 0);
+    const speed = r == null ? '' : info.settings.speedUnit === 'mbps' ? `${(r * 8 / 1e6).toFixed(1)} Mbps` : `${(r / 1048576).toFixed(1)} MB/s`;
+    const left = r ? timeLeft(((d.totalBytes || 0) - (d.bytes || 0)) / r) : '';
+    const pct = d.totalBytes ? Math.floor(100 * d.bytes / d.totalBytes) : 0;
+    $('#rdWineText').textContent = [`Downloading Wine ${d.version || ''}: ${mb(d.bytes || 0)} of ${mb(d.totalBytes || 0)} MB (${pct}%)`, speed, left].filter(Boolean).join(' · ');
+    $('#rdWineFill').style.width = `${pct}%`;
+  } else if (d.phase === 'check') {
+    $('#rdWineText').textContent = 'Checking what\'s already downloaded...';
+  } else if (d.phase === 'unpack') {
+    $('#rdWineText').textContent = 'Unpacking...';
+    $('#rdWineFill').style.width = '100%';
+  } else if (d.phase === 'done') {
+    setWineBusy(false);
+    $('#rdWineGo').hidden = true;
+    $('#rdWineMsg').textContent = `Wine ${d.version} is installed, and the launcher will use it to run the game. You're all set.`;
+    $('#rdWineMsg').className = 'msg ok';
+    $('#rdOk').textContent = 'Done';
+    $('#rdOk').classList.add('primary');
+    for (const el of [$('#rdOrText'), $('#rdList')]) el.hidden = true;
+    loadWineRow();
+  } else if (d.phase === 'cancelled') {
+    setWineBusy(false);
+    $('#rdWineMsg').textContent = 'Stopped. Install Wine for Me picks it up where it left off.';
+  } else if (d.phase === 'error') {
+    setWineBusy(false);
+    $('#rdWineGo').textContent = 'Try Again';
+    $('#rdWineMsg').textContent = `Couldn't install Wine: ${d.error}`;
+    $('#rdWineMsg').className = 'msg bad';
+  }
+});
+const errText = (e) => String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
+
+// Settings: the launcher's own Wine, with Update (when there's a newer stable one) and Remove
+async function loadWineRow() {
+  const row = $('#wineRow');
+  if (!row) return;
+  let w = null;
+  try { w = await launcher.wineInfo({ check: true }); } catch { /* none */ }
+  row.hidden = !(w && w.supported);
+  if (!w || !w.supported) return;
+  const newer = w.latest && w.installed && w.latest.version !== w.installed.version;
+  $('#wineState').textContent = w.installed ? `Wine ${w.installed.version}, installed by the launcher${newer ? ` (${w.latest.version} is out)` : ''}` : 'Not installed';
+  $('#wineGet').textContent = !w.installed ? 'Install Wine' : newer ? `Update to ${w.latest.version}` : 'Reinstall';
+  $('#wineGet').hidden = !!(w.installed && !newer && !w.latest);
+  $('#wineDel').hidden = !w.installed;
+}
+$('#wineGet') && ($('#wineGet').onclick = () => { $('#settings').close(); $('#rdWineMsg').textContent = ''; $('#rdOk').textContent = 'Close'; showWineOffer().then(() => { $('#runnerDlg').showModal(); $('#rdWineGo').click(); }); });
+$('#wineDel') && ($('#wineDel').onclick = async () => {
+  if (!confirm('Remove the Wine the launcher installed? Its game settings (the Wine prefix) stay.')) return;
+  try { info = await launcher.wineRemove(); loadWineRow(); $('#settingsBtn').onclick(); } catch (e) { alert(errText(e)); }
+});
 
 // ---- Health chip dropdown: Each shard's status, players and maps ----
 

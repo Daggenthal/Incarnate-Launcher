@@ -78,7 +78,7 @@ It grabs the right download for your computer (x64 or ARM), checks it, installs 
 3. If it doesn't start and says something about FUSE: Install it (Ubuntu 24.04 and newer: `sudo apt install libfuse2t64`, older Ubuntu and Debian: `sudo apt install libfuse2`, Fedora: `sudo dnf install fuse-libs`, Arch: `sudo pacman -S fuse2`).
 4. Keep the AppImage somewhere you can write to (like your home folder): updates replace that file.
 
-You also need Wine or Proton. The launcher finds them by itself and tells you if there's none:
+You also need Wine or Proton to play. The launcher finds them by itself. If there's neither, on a regular (x64) PC it offers **Install Wine for Me**: It downloads the newest stable Wine (a self-contained build from [Kron4ek's Wine builds](https://github.com/Kron4ek/Wine-Builds)) into its own folder, no password needed. Settings can update or remove it later. Or install one yourself:
 
 - **Proton:** Install Steam, then any Proton version from your Library (under Tools). GE-Proton works too.
 - **Wine:** From your package manager, for example `sudo apt install wine` or `sudo dnf install wine`.

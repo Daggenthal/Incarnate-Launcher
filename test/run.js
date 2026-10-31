@@ -310,6 +310,40 @@ const listen = (srv) => new Promise((r) => srv.listen(0, '127.0.0.1', () => r(sr
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  await test('wine: picks the newest stable (x.0) build with a checksum, never a dev or pre-release', async () => {
+    const w = require('../lib/wine-install');
+    const asset = (tag, digest = `sha256:${'a'.repeat(64)}`) => ({ name: `wine-${tag}-amd64-wow64.tar.xz`, size: 73e6, digest, browser_download_url: `https://x/${tag}` });
+    const list = [
+      { tag_name: '12.0', prerelease: true, assets: [asset('12.0')] },
+      { tag_name: '11.20', prerelease: false, assets: [asset('11.20')] },
+      { tag_name: 'proton-11.0-2', prerelease: false, assets: [] },
+      { tag_name: '11.0', prerelease: false, assets: [asset('11.0'), { name: 'wine-11.0-amd64.tar.xz' }] },
+      { tag_name: '10.0', prerelease: false, assets: [asset('10.0')] },
+    ];
+    const real = global.fetch;
+    global.fetch = async () => new Response(JSON.stringify(list), { status: 200 });
+    try {
+      const b = await w.findStable();
+      assert.strictEqual(b.version, '11.0');
+      assert.strictEqual(b.name, 'wine-11.0-amd64-wow64.tar.xz');
+      assert.strictEqual(b.sha256, 'a'.repeat(64));
+      // No checksum on the newest stable: the one before it
+      list[3].assets[0].digest = null;
+      assert.strictEqual((await w.findStable()).version, '10.0');
+    } finally { global.fetch = real; }
+    assert.ok(w.supported('linux', 'x64') && !w.supported('linux', 'arm64') && !w.supported('darwin', 'arm64') && !w.supported('win32', 'x64'));
+    // installed(): newest first, only folders with bin/wine
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wine-'));
+    for (const n of ['wine-10.0-amd64-wow64', 'wine-11.0-amd64-wow64', 'wine-9.0-broken']) {
+      fs.mkdirSync(path.join(dir, n, 'bin'), { recursive: true });
+      if (!n.includes('broken')) fs.writeFileSync(path.join(dir, n, 'bin', 'wine'), '');
+    }
+    assert.deepStrictEqual(w.installed(dir).map((x) => x.version), ['11.0', '10.0']);
+    const r = w.runnerFor(w.installed(dir)[0], '/p');
+    assert.ok(r.managed && r.kind === 'wine' && r.prefix === '/p' && /Wine 11\.0/.test(r.name));
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   await test('updates: release versions compare', () => {
     const { newer } = require('../lib/release-update');
     assert.ok(newer('0.2.0', '0.1.9') && newer('1.0.0', '1.0.0-rc1') && !newer('0.1.0', '0.1.0') && !newer('0.9.9', '1.0.0'));

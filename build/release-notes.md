@@ -1,3 +1,4 @@
-## What's new in 0.2.3
+Further attempts to optimize the first-time setup process
+## What's new in 0.2.4
 
-- Linux installer: an AppArmor profile so it starts on Ubuntu 24.04+
+- Install Wine for Me on Linux x64

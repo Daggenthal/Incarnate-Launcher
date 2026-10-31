@@ -110,6 +110,7 @@
     <section class="setSec">
     <h3>Launcher</h3>
     <div id="runnerFields"></div>
+    <div class="field" id="wineRow" hidden><label>Launcher's Wine</label><div class="row"><span id="wineState" class="dim"></span><button id="wineGet">Install Wine</button><button id="wineDel" class="danger">Remove</button></div></div>
     <div class="field"><label for="setSpeed">Download Speed Display Preferences:</label><select id="setSpeed">
       <option value="mbs">MB/s (Megabytes Per Second)</option><option value="mbps">Mbps (Megabits Per Second)</option></select></div>
     <div class="field"><label></label><label class="check"><input type="checkbox" id="setSwitchSlow"> Switch Mirrors When One Is Slow</label></div>
@@ -143,9 +144,19 @@
   <dialog id="runnerDlg">
     <h2>One more thing to install</h2>
     <p id="rdText"></p>
+    <div id="rdWine" class="wineBox" hidden>
+      <div class="wineHead"><b>Easiest: Let the Launcher Install Wine</b><span class="dim" id="rdWineWhat"></span></div>
+      <div id="rdWineProg" hidden>
+        <div class="dlText" id="rdWineText"></div>
+        <div class="bar"><div id="rdWineFill"></div></div>
+      </div>
+      <p class="msg" id="rdWineMsg"></p>
+      <div class="row"><button id="rdWineGo" class="primary">Install Wine for Me</button><button id="rdWineCancel" hidden>Cancel</button></div>
+    </div>
+    <p class="dim" id="rdOrText">Or install one of these yourself:</p>
     <ul id="rdList" class="rdList"></ul>
     <p class="dim">The launcher looks again every time it starts. Once one is installed, Settings has it under "Run the Game With".</p>
-    <div class="row end"><button id="rdOk" class="primary">Got It</button></div>
+    <div class="row end"><button id="rdOk">Close</button></div>
   </dialog>
 
   <dialog id="folderDlg">

@@ -1,0 +1,59 @@
+{
+  "name": "incarnate-launcher",
+  "productName": "Incarnate Launcher",
+  "version": "0.1.0",
+  "description": "A launcher for City of Heroes servers: add a server, download the game, see if it's up, and play. Windows, macOS and Linux.",
+  "main": "main.js",
+  "author": "Daggenthal",
+  "license": "MIT",
+  "homepage": "https://github.com/Daggenthal/Incarnate-Launcher",
+  "repository": { "type": "git", "url": "https://github.com/Daggenthal/Incarnate-Launcher.git" },
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/run.js",
+    "dist": "electron-builder --publish never"
+  },
+  "dependencies": {
+    "xz-decompress": "0.2.3"
+  },
+  "devDependencies": {
+    "electron": "44.8.0",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "com.daggenthal.incarnate-launcher",
+    "productName": "Incarnate Launcher",
+    "artifactName": "Incarnate-Launcher-${version}-${os}-${arch}.${ext}",
+    "files": ["main.js", "preload.js", "lib/**", "renderer/**", "assets/**", "package.json"],
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["universal"] }],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.games",
+      "identity": "-"
+    },
+    "dmg": {
+      "title": "Incarnate Launcher",
+      "contents": [
+        { "x": 150, "y": 190 },
+        { "x": 410, "y": 190, "type": "link", "path": "/Applications" }
+      ],
+      "window": { "width": 560, "height": 380 }
+    },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Incarnate-Launcher-Setup-${version}.${ext}"
+    },
+    "portable": { "artifactName": "Incarnate-Launcher-${version}-Portable.${ext}" },
+    "linux": {
+      "target": [{ "target": "AppImage", "arch": ["x64", "arm64"] }],
+      "icon": "assets/icon.png",
+      "category": "Game"
+    },
+    "publish": [{ "provider": "github", "owner": "Daggenthal", "repo": "Incarnate-Launcher", "releaseType": "release" }]
+  }
+}

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:">
+  <title>Incarnate Launcher</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="mark">I</span> Incarnate</div>
+    <div class="spacer"></div>
+    <div class="theme" id="theme">
+      <button data-theme="auto">Auto</button><button data-theme="light">Light</button><button data-theme="dark">Dark</button>
+    </div>
+    <button id="appUpdateBtn" class="badgebtn" hidden title="A newer launcher: update and restart it">Update Available</button>
+    <button id="settingsBtn">Settings</button>
+  </header>
+
+  <main>
+    <aside>
+      <div class="asideHead">Servers</div>
+      <ul id="servers"></ul>
+      <div class="add">
+        <select id="knownSel" title="Servers people play on, with their published manifests"><option value="">Add a known server...</option></select>
+        <input id="addUrl" placeholder="Manifest address (https://...)" spellcheck="false">
+        <div class="row">
+          <button id="addBtn" class="primary">Add</button>
+          <button id="addFileBtn">From file...</button>
+        </div>
+        <div id="addMsg" class="msg"></div>
+      </div>
+    </aside>
+
+    <section id="detail">
+      <div class="empty" id="emptyState">Add a server with its manifest address to get started.</div>
+      <div id="serverView" hidden>
+        <div class="hero">
+          <div>
+            <h1 id="sName"></h1>
+            <div class="source" id="sSub"></div>
+          </div>
+          <div class="healthWrap">
+            <button class="healthChip" id="sHealthChip" title="Shards, players and maps"></button>
+            <div class="shardsPop" id="sShards" hidden></div>
+          </div>
+        </div>
+
+        <div class="error" id="sError" hidden></div>
+
+        <div class="card" id="newsCard">
+          <div class="cardHead"><h2>News</h2><button class="ghost small" id="newsRefresh" title="Get the latest news">↻ Refresh</button></div>
+          <div id="newsBody" class="news"><p class="dim">Loading...</p></div>
+        </div>
+
+        <div class="links" id="sLinks"></div>
+
+        <div class="playRow">
+          <div class="playInfo">
+            <div id="playMsg" class="msg"></div>
+            <div id="dlBox" hidden>
+              <div class="dlText" id="dlText"></div>
+              <div class="bar"><div id="dlFill"></div></div>
+            </div>
+          </div>
+          <button id="dlCancel" hidden>Cancel</button>
+          <button id="playBtn" class="play">Play</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="settings">
+    <h2>Settings</h2>
+    <section class="setSec" id="serverSec">
+      <h3>This Server: <span id="setServerName"></span></h3>
+          <div class="field"><label for="sManifest">Manifest</label>
+            <div class="launchopts"><div class="folder"><input id="sManifest" type="text" spellcheck="false" placeholder="https://... or a file"><button id="sManifestBtn">Change</button></div>
+              <div class="dim" id="sManifestNote"></div></div>
+          </div>
+          <div class="field"><label>Profile</label><select id="sProfile"></select></div>
+          <div class="field"><label>Launch Options</label>
+            <div class="launchopts"><input id="sArgs" type="text" spellcheck="false" placeholder="Added to the game's command line, for this server only">
+            </div>
+          </div>
+          <div class="field"><label>Install Folder</label>
+            <div class="folder"><span id="sDir" class="path"></span><button id="sDirBtn">Change...</button><button id="sRevealBtn" class="link">Open</button></div>
+          </div>
+          <div class="field"><label>Files</label>
+            <div class="patch">
+              <div id="sPatchText" class="dim"></div>
+              <div class="bar" id="sBar" hidden><div id="sBarFill"></div></div>
+              <div class="row"><button id="sPatchBtn" title="Download what's new or missing (files already checked are skipped)">Check for Updates</button><button id="sVerifyBtn" title="Compare every file's checksum with the manifest and download again any that don't match">Repair (Verify Checksums)</button><button id="sCleanBtn" title="Files the launcher downloaded for this server that its manifest doesn't use anymore">Clean Up Old Files</button><button id="sCancelBtn" hidden>Cancel</button></div>
+            </div>
+          </div>
+        
+        <div id="logsCard">
+          <h4>Logs</h4>
+          <p class="dim">What the launcher did for this server: downloads, failed files, starting the game. Copy Logs adds the end of the game's own log, for a bug report.</p>
+          <pre id="sLog" class="slog"></pre>
+          <div class="row"><button id="sCopyLogs">Copy Logs</button><button id="sCopyCrashes">Copy Crash Reports</button><button id="sLogsFolder" class="link">Open Logs Folder</button><span id="sLogMsg" class="msg"></span></div>
+        </div>
+
+      <div class="field"><label for="feedUrl">News Feed</label><input id="feedUrl" placeholder="An RSS or Atom feed, or a news page (optional)" spellcheck="false"></div>
+      <div class="danger-zone" id="removeZone">
+        <p class="dim">Takes <b id="removeName"></b> off the list. Its game files stay where they are.</p>
+        <button id="removeBtn" class="danger">Remove Server</button>
+      </div>
+    </section>
+    <section class="setSec">
+    <h3>Launcher</h3>
+    <div id="runnerFields"></div>
+    <div class="field"><label for="setSpeed">Download Speed Display Preferences:</label><select id="setSpeed">
+      <option value="mbs">MB/s (Megabytes Per Second)</option><option value="mbps">Mbps (Megabits Per Second)</option></select></div>
+    <div class="field"><label></label><label class="check"><input type="checkbox" id="setSwitchSlow"> Switch Mirrors When One Is Slow</label></div>
+    <p class="dim">A download that stays under 64 KB/s for 30 seconds moves to the server's next mirror and picks up where it left off.</p>
+    <div class="field"><label>Logs Folder</label>
+      <div class="folder"><span id="setLogDir" class="path" title=""></span><button id="setLogCopy" class="link">Copy</button><button id="setLogOpen" class="link">Open</button></div></div>
+    <p class="dim">Each server's game log and launcher log are here (<code>&lt;server&gt;.log</code>, <code>&lt;server&gt;.launcher.log</code>).</p>
+    <p class="dim" id="debugNote"></p>
+    <p id="debugTools" hidden><button id="showWelcome" class="link">Show the first-run server picker</button></p>
+    <div class="software">
+      <h3>Incarnate Launcher</h3>
+      <div class="row"><span>Software Version: <b id="swVersion">...</b></span></div>
+      <div class="row"><button id="swCheck">Check for Updates</button><button id="swUpdate" class="primary" hidden>Update Available</button></div>
+      <label class="check"><input type="checkbox" id="swAuto"> Automatically check for updates (at launch)</label>
+      <p class="dim" id="swStatus"></p>
+      <ul id="swNew" class="swnew"></ul>
+    </div>
+    </section>
+    <div class="row end sticky"><button id="settingsSave" class="primary">Save</button><button id="settingsClose">Close</button></div>
+  </dialog>
+
+  <dialog id="welcomeDlg">
+    <h2>Welcome to the Incarnate Launcher</h2>
+    <p>Pick the servers you play on. Each gets its own install folder, and you can add or remove servers any time.</p>
+    <div id="wlList" class="wlList"></div>
+    <div class="field"><label for="wlUrl">Another Server</label><input id="wlUrl" placeholder="Its manifest address (https://...)" spellcheck="false"></div>
+    <p class="msg" id="wlMsg"></p>
+    <div class="row end"><button id="wlAdd" class="primary">Add</button><button id="wlSkip">Not Now</button></div>
+  </dialog>
+
+  <dialog id="runnerDlg">
+    <h2>One more thing to install</h2>
+    <p id="rdText"></p>
+    <ul id="rdList" class="rdList"></ul>
+    <p class="dim">The launcher looks again every time it starts. Once one is installed, Settings has it under "Run the Game With".</p>
+    <div class="row end"><button id="rdOk" class="primary">Got It</button></div>
+  </dialog>
+
+  <dialog id="folderDlg">
+    <h2>Where should <span id="fdName"></span> go?</h2>
+    <p>Its game files go in a folder of their own, apart from Incarnate's, so patching one never touches the other:</p>
+    <p class="path" id="fdPath"></p>
+    <p class="msg" id="fdMsg"></p>
+    <div class="row end"><button id="fdUse" class="primary">Install Here</button><button id="fdPick">Choose Another Folder...</button><button id="fdLater">Later</button></div>
+  </dialog>
+
+  <dialog id="cleanDlg">
+    <h2>Clean Up Old Files</h2>
+    <p id="cdText"></p>
+    <ul id="cdList" class="cdList"></ul>
+    <p class="dim">Only files the launcher downloaded for this server are listed. Screenshots, costumes and settings are never touched.</p>
+    <div class="row end"><button id="cdGo" class="danger">Remove Them</button><button id="cdNo">Cancel</button></div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

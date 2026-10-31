@@ -54,6 +54,13 @@ fi
 # ---- Removing it ----
 if [ "${1:-}" = --uninstall ]; then
     rm -f "$app" "$desktop" "$icon"
+    # The AppArmor profile (Ubuntu 24.04+), if this installer added one
+    if [ -f /etc/apparmor.d/incarnate-launcher ] && grep -q 'Incarnate Launcher' /etc/apparmor.d/incarnate-launcher 2> /dev/null; then
+        say "Removing its AppArmor profile (needs your password)"
+        s() { if [ "$(id -u)" = 0 ]; then "$@"; elif (exec < /dev/tty) 2> /dev/null; then sudo "$@" < /dev/tty; else sudo "$@"; fi; }
+        s apparmor_parser -R /etc/apparmor.d/incarnate-launcher 2> /dev/null || true
+        s rm -f /etc/apparmor.d/incarnate-launcher || warn "Couldn't remove /etc/apparmor.d/incarnate-launcher (remove it with sudo)"
+    fi
     command -v update-desktop-database > /dev/null && update-desktop-database "$data/applications" 2> /dev/null || true
     ok "$NAME removed. Your game files and settings are still there (~/.config/Incarnate Launcher and each server's install folder)."
     exit 0
@@ -104,6 +111,13 @@ run_root() {
     elif command -v sudo > /dev/null; then sudo "$@"
     else echo "no sudo here"; return 1; fi
 }
+# Ask for the password now, on the terminal, so the prompt is never hidden
+ask_password() {
+    [ "$(id -u)" = 0 ] && return 0
+    sudo -n true 2> /dev/null && return 0
+    say "${bold}It needs your password:${off}"
+    { has_tty && sudo -v < /dev/tty; } || true
+}
 # This system's package manager, and its names for FUSE 2 and zlib's development package
 pm=""; fuse_pkg=""; zlib_pkg=""
 if [[ "$distro" == *debian* || "$distro" == *ubuntu* ]]; then
@@ -137,9 +151,7 @@ if [ "${#need[@]}" -gt 0 ]; then
     done_ok=0
     if [ "${#cmd[@]}" -gt 0 ]; then
         say "Installing ${need[*]} (AppImages need it to start)"
-        [ "$(id -u)" = 0 ] || sudo -n true 2> /dev/null || say "${bold}It needs your password:${off}"
-        # Ask for it now, on the terminal, so the prompt is never hidden
-        [ "$(id -u)" = 0 ] || { has_tty && sudo -v < /dev/tty; } || true
+        ask_password
         try_install && done_ok=1
     fi
     has_fuse || no_fuse=1
@@ -151,6 +163,44 @@ if [ "${#need[@]}" -gt 0 ]; then
         if [ -n "$hint" ]; then warn "Install it yourself, then start it from the app menu: $hint"
         else warn "Install FUSE 2${zlib_pkg:+ and zlib} with your package manager, then start it from the app menu."; fi
         [ "$no_fuse" = 1 ] && [ "$arch" != ARM ] && warn "Until then, the menu entry starts it without FUSE (a bit slower to open)."
+    fi
+fi
+
+# ---- Ubuntu 24.04+: let Chromium's sandbox start ----
+# Ubuntu blocks the user namespaces Chromium's sandbox uses unless an AppArmor profile allows them
+# for that program (what Chrome and other browsers ship). Without one, it aborts at start. So add
+# a profile for the launcher; if that can't be done, the menu entry starts it with --no-sandbox
+profile=/etc/apparmor.d/incarnate-launcher
+sandbox_flag=""
+if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2> /dev/null || echo 0)" = 1 ]; then
+    if [ -f "$profile" ] && grep -q 'Incarnate Launcher' "$profile" 2> /dev/null; then
+        dbg "AppArmor profile is already there"
+    else
+        ptmp="$(mktemp)"
+        cat > "$ptmp" <<'PROFILE'
+# Incarnate Launcher: lets its Chromium sandbox start on Ubuntu 24.04 and newer, which only allows
+# the user namespaces it needs to programs with a profile like this. Added by its install.sh;
+# install.sh --uninstall removes it.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile incarnate-launcher /**/{.mount_*,appimage_extracted_*}/incarnate-launcher flags=(unconfined) {
+  userns,
+
+  include if exists <local/incarnate-launcher>
+}
+PROFILE
+        say "Adding an AppArmor profile so its sandbox can start (Ubuntu 24.04 and newer need one)"
+        ask_password
+        alog="$(mktemp)"
+        if run_root install -m 644 "$ptmp" "$profile" >> "$alog" 2>&1 && run_root apparmor_parser -r "$profile" >> "$alog" 2>&1; then
+            ok "Added the AppArmor profile"
+        else
+            sandbox_flag=" --no-sandbox"
+            warn "Couldn't add the AppArmor profile, so it'll start with --no-sandbox (Chromium's sandbox off)."
+            [ -s "$alog" ] && tail -3 "$alog" | sed 's/^/  /'
+        fi
+        rm -f "$ptmp" "$alog"
     fi
 fi
 
@@ -177,8 +227,8 @@ ok "Installed: $app"
 # ---- App menu ----
 mkdir -p "$(dirname "$desktop")" "$(dirname "$icon")"
 save "https://raw.githubusercontent.com/$REPO/main/assets/icon.png" "$icon" 2> /dev/null || warn "Couldn't get the icon (the menu entry works without it)."
-exec_line="\"$app\" %U"
-[ "$no_fuse" = 1 ] && exec_line="env APPIMAGE_EXTRACT_AND_RUN=1 \"$app\" %U"
+exec_line="\"$app\"$sandbox_flag %U"
+[ "$no_fuse" = 1 ] && exec_line="env APPIMAGE_EXTRACT_AND_RUN=1 \"$app\"$sandbox_flag %U"
 cat > "$desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
@@ -193,6 +243,6 @@ DESKTOP
 command -v update-desktop-database > /dev/null && update-desktop-database "$data/applications" 2> /dev/null || true
 ok "Added $NAME to your app menu"
 say ""
-if [ "$no_fuse" = 1 ]; then say "Start it from your app menu, or run: ${bold}APPIMAGE_EXTRACT_AND_RUN=1 $app${off}"
-else say "Start it from your app menu, or run: ${bold}$app${off}"; fi
+if [ "$no_fuse" = 1 ]; then say "Start it from your app menu, or run: ${bold}APPIMAGE_EXTRACT_AND_RUN=1 $app$sandbox_flag${off}"
+else say "Start it from your app menu, or run: ${bold}$app$sandbox_flag${off}"; fi
 say "It updates itself from now on. You still need Wine or Proton to play; it tells you if there's none."

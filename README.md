@@ -6,13 +6,13 @@ Incarnate Launcher runs through Electron as a way to enable those OS-Agnostic ca
 
 ## What it does
 
-- **Servers:** Homecoming, Thunderspy, Rebirth, Cake: New Dawn and Unity are one click away, and any other server works with its manifest address.
-- **Downloads:** Starts on the fastest mirror, jumps to another if one fails or crawls, resumes where it left off, checks every file, and shows your speed and time left.
-- **Server status:** Up or down, players online, and each shard's status where the server publishes it.
-- **News:** The server's news, right in the launcher.
-- **Runs on macOS and Linux too:** It finds CrossOver, Whisky, Wine or Proton by itself and uses it.
-- **Logs:** Copy Logs and Copy Crash Reports put everything a server's staff needs on your clipboard.
-- **Updates:** It tells you when a new version is out.
+- **Default-Grab Some of the Most Used Servers:** Homecoming, Thunderspy, Rebirth, Cake: New Dawn and Unity are one click away, and any other server works with its manifest address.
+- **Downloads Begin On The Fastest Available CDN:** Starts on the fastest mirror, jumps to another if one fails or crawls, resumes where it left off, checks every file, and shows your speed and time left.
+- **Active Server Status:** Up or down, players online, and each shard's status where the server publishes it.
+- **Listed Server News:** The server's news, right in the launcher.
+- **macOS & Linux Native Launcher:** It finds CrossOver, Whisky, Wine or Proton by itself and uses it for you, also prompting to grab Wine for you if you don't have it.
+- **Easy Logs for Diagnostics:** Copy Logs and Copy Crash Reports put everything a server's staff needs on your clipboard.
+- **Automatic Server & Software Updates:** Notifies you when the Incarnate Launcher has an update.
 
 ## Download
 
@@ -25,7 +25,7 @@ Grab the newest version from [Releases](https://github.com/Daggenthal/Incarnate-
 | Linux (x64) | `Incarnate-Launcher-x.y.z-linux-x86_64.AppImage` |
 | Linux (ARM) | `Incarnate-Launcher-x.y.z-linux-arm64.AppImage` |
 
-The launcher isn't signed with a paid Apple or Microsoft certificate, so the first time you open it your system will warn you. That's expected. Here's how to get past it on each one.
+The launcher isn't signed with a paid Apple or Microsoft certificate as of yet, so the first time you open it your system will warn you. That's expected. Here's how to get past it on each one.
 
 ## Windows
 
@@ -38,15 +38,15 @@ The launcher isn't signed with a paid Apple or Microsoft certificate, so the fir
 1. Open the `.dmg`. Drag **Incarnate Launcher** onto the **Applications** folder in that window.
 2. Open it from Applications. macOS will say it can't verify the app. Click **Done** (not Move to Trash).
 3. Open **System Settings → Privacy & Security**, scroll down to the message about Incarnate Launcher, and click **Open Anyway**. Enter your password if it asks, then click **Open Anyway** again.
-4. From now on it opens normally.
+4. Now it'll open naturally.
 
-You also need something that runs Windows games. The launcher tells you if it can't find one:
+You also need something that runs Windows games, for the time being. The launcher automatically tells you if it can't find one on your system:
 
 - **[CrossOver](https://www.codeweavers.com/crossover):** Paid, with a free trial. The easiest and most reliable.
 - **[Whisky](https://getwhisky.app/):** Free.
 - **Wine:** Free. With Homebrew: `brew install --cask wine-stable`
 
-If macOS still refuses to open it, this does the same as Open Anyway (in Terminal):
+If macOS still refuses to open it, this does the same as Open Anyway (in Terminal). As always be aware of the commands that you are running before blindly running commands:
 
 ```
 xattr -dr com.apple.quarantine "/Applications/Incarnate Launcher.app"
@@ -54,7 +54,7 @@ xattr -dr com.apple.quarantine "/Applications/Incarnate Launcher.app"
 
 ## Linux
 
-Paste this in a terminal:
+Paste this in a terminal, to automatically grab the latest version for first-time install. The software checks for updates by itself, afterwards:
 
 ```
 wget -qO- https://raw.githubusercontent.com/Daggenthal/Incarnate-Launcher/main/install.sh | bash
